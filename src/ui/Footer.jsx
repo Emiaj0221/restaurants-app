@@ -1,12 +1,11 @@
-export default function Footer() {
+export default function Footer() { 
   return (
-      <footer class="bg-purple-900 text-white rounded-lg shadow-sm">
-        <div class="w-full mx-auto max-w-screen-xl p-4 md:flex md:items-center md:justify-center">
-          <span class="text-sm text-white-500 sm:text-center">
-            © 2025{" "}
-              Directorio restaurantes™. All Rights Reserved.
-          </span>
-        </div>
-      </footer>
+    <footer className="bg-purple-900 text-white rounded-0 shadow-sm mt-auto">
+      <div className="w-100 mx-auto max-w-screen-xl p-4 d-flex justify-content-center align-items-center">
+        <span className="text-sm text-white-50 text-center">
+          © 2025 <strong>Directorio restaurantes™</strong>. All Rights Reserved.
+        </span>
+      </div>
+    </footer>
   );
 }

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { restaurantsData } from '../data';
+import { useState } from "react";
+import { restaurantsData } from "../data";
 
 const Search = () => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
 
   const filteredRestaurants = restaurantsData.filter((restaurant) =>
     restaurant.name.toLowerCase().includes(query.toLowerCase())
@@ -10,19 +10,24 @@ const Search = () => {
 
   return (
     <div className="container mx-auto p-4">
-      <h2 className="text-3xl font-bold text-center mb-6">Buscar Restaurantes</h2>
+      <h2 className="text-3xl font-bold text-center mb-6">
+        Buscar Restaurantes
+      </h2>
       <div className="flex justify-center mb-6">
         <input
           type="text"
           placeholder="Buscar por nombre ..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
         />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredRestaurants.map((restaurant) => (
-          <div key={restaurant.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div
+            key={restaurant.id}
+            className="bg-white rounded-lg shadow-md overflow-hidden transition-transform transform hover:scale-105 hover:shadow-xl duration-300"
+          >
             <img
               src={restaurant.image}
               alt={restaurant.name}
