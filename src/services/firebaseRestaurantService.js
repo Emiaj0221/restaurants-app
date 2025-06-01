@@ -1,76 +1,121 @@
-// Servicio para manejar operaciones relacionadas con restaurantes
+import {
+    collection,
+    doc,
+    getDocs,
+    addDoc,
+    updateDoc,
+    deleteDoc,
+    query,
+    where,
+    orderBy,
+    writeBatch
+} from 'firebase/firestore';
+import { db } from '../firebase';
 
-// Función que nos permite generar ID únicos
+const COLLECTION_NAME = 'restaurants';
+
 const generateId = () => {
-  return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);  
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 9); 
 };
 
-// Obtenemos restaurantes desde el localStorage
-export const getRestaurants = async () => { 
+export const getRestaurants = async () => {
   try {
-    const savedRestaurants = localStorage.getItem('restaurants');
-    if (savedRestaurants) {
-      return JSON.parse(savedRestaurants);
+    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+    const restaurants = [];
+    
+    querySnapshot.forEach((doc) => {
+      restaurants.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+
+    if (restaurants.length === 0) {
+      const initialRestaurants = await initializeRestaurants();
+      return initialRestaurants;
     }
-    // Si no hay restaurantes en localStorage, inicializar con datos de ejemplo
-    const initialRestaurants = getInitialRestaurants();
-    localStorage.setItem('restaurants', JSON.stringify(initialRestaurants));
-    return initialRestaurants;
+
+    return restaurants.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   } catch (error) {
     console.error('Error al obtener restaurantes:', error);
-    return [];
+    throw error;
   }
 };
 
-// Listar un restaurante por ID
-export const getRestaurantById = async (id) => {   
+
+export const getRestaurantById = async (id) => {
   try {
-    const restaurants = await getRestaurants();
-    return restaurants.find(restaurant => restaurant.id === id) || null;  
+    const docRef = doc(db, COLLECTION_NAME, id);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      return {
+        id: docSnap.id,
+        ...docSnap.data()
+      };
+    } else {
+      return null;
+    }
   } catch (error) {
     console.error('Error al buscar restaurante:', error);
-    return null;
+    throw error;
+  }
+};
+
+export const searchRestaurantsByName = async (searchTerm) => {
+  try {
+    const restaurants = await getRestaurants();
+    
+    if (!searchTerm) {
+      return restaurants;
+    }
+
+    // Filtrar por nombre (búsqueda insensible a mayúsculas/minúsculas)
+    const filteredRestaurants = restaurants.filter(restaurant => 
+      restaurant.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return filteredRestaurants;
+  } catch (error) {
+    console.error('Error al buscar restaurantes:', error);
+    throw error;
   }
 };
 
 
-// Crea un nuevo restaurante
 export const addRestaurant = async (restaurantData) => {
   try {
-    const restaurants = await getRestaurants();
     const newRestaurant = {
       ...restaurantData,
-      id: generateId(),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     
-    restaurants.push(newRestaurant);
-    localStorage.setItem('restaurants', JSON.stringify(restaurants));
-    return newRestaurant;
+    const docRef = await addDoc(collection(db, COLLECTION_NAME), newRestaurant);
+    
+    return {
+      id: docRef.id,
+      ...newRestaurant
+    };
   } catch (error) {
     console.error('Error al añadir restaurante:', error);
     throw error;
   }
 };
 
-// Actualiza un restaurate existente
 export const updateRestaurant = async (id, updatedData) => {
   try {
-    const restaurants = await getRestaurants();
-    const index = restaurants.findIndex(restaurant => restaurant.id === id);
+    const docRef = doc(db, COLLECTION_NAME, id);
     
-    if (index === -1) {
-      throw new Error('Restaurante no encontrado');
-    }
-    
-    const updatedRestaurant = {
-      ...restaurants[index],
+    const updateData = {
       ...updatedData,
       updatedAt: new Date().toISOString()
     };
     
-    restaurants[index] = updatedRestaurant;
-    localStorage.setItem('restaurants', JSON.stringify(restaurants));
+    await updateDoc(docRef, updateData);
+    
+    // Retornar el restaurante actualizado
+    const updatedRestaurant = await getRestaurantById(id);
     return updatedRestaurant;
   } catch (error) {
     console.error('Error al actualizar restaurante:', error);
@@ -78,19 +123,69 @@ export const updateRestaurant = async (id, updatedData) => {
   }
 };
 
-// Eliminar un restaurante
 export const deleteRestaurant = async (id) => {
   try {
-    const restaurants = await getRestaurants();
-    const filteredRestaurants = restaurants.filter(restaurant => restaurant.id !== id);
-    
-    localStorage.setItem('restaurants', JSON.stringify(filteredRestaurants));
+    const docRef = doc(db, COLLECTION_NAME, id);
+    await deleteDoc(docRef);
     return true;
   } catch (error) {
     console.error('Error al eliminar restaurante:', error);
     throw error;
   }
 };
+
+
+export const getRestaurantsByCategory = async (category) => {
+  try {
+    const q = query(
+      collection(db, COLLECTION_NAME), 
+      where("category", "==", category),
+      orderBy("createdAt", "desc")
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const restaurants = [];
+    
+    querySnapshot.forEach((doc) => {
+      restaurants.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+
+    return restaurants;
+  } catch (error) {
+    console.error('Error al filtrar por categoría:', error);
+    throw error;
+  }
+};
+
+
+const initializeRestaurants = async () => {
+  try {
+    const initialRestaurants = getInitialRestaurants();
+    const batch = writeBatch(db);
+    const addedRestaurants = [];
+
+    initialRestaurants.forEach((restaurant) => {
+      const docRef = doc(collection(db, COLLECTION_NAME));
+      batch.set(docRef, restaurant);
+      addedRestaurants.push({
+        id: docRef.id,
+        ...restaurant
+      });
+    });
+
+    await batch.commit();
+    
+    console.log('Restaurantes inicializados correctamente');
+    return addedRestaurants;
+  } catch (error) {
+    console.error('Error al inicializar restaurantes:', error);
+    throw error;
+  }
+};
+
 
 
 const getInitialRestaurants = () => {
